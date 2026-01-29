@@ -1,25 +1,50 @@
 import sys
 import asyncio
-# Fix for Windows event loop
+import os
+from typing import TypedDict, Annotated
+
+# Fix for Windows event loop compatibility
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import FAISS
 from langchain_core.tools import tool
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from typing import TypedDict, Annotated
-from langchain_community.vectorstores import FAISS
-import os
-from dotenv import load_dotenv
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+# Load environment variables
 load_dotenv()
 
 llm = ChatOpenAI(model='gpt-4o-mini')
+
+client = MultiServerMCPClient(
+    {
+        "weather": {
+            "transport": "http",
+            "url": "https://weather-ca299b5b8522.fastmcp.app/mcp",
+            "headers": {  
+                "Authorization": f"Bearer fmcp_pK2yvWhNnJ1EJde-9FOla2He9HtnR16o9dtM5U_5nWE",
+            },  
+        },
+        
+        "expense": {
+            'transport': 'http',
+            'url': 'https://labour-magenta-salmon.fastmcp.app/mcp',
+            "headers": {  
+                "Authorization": "Bearer fmcp_pK2yvWhNnJ1EJde-9FOla2He9HtnR16o9dtM5U_5nWE",
+            },
+        }
+    }
+)
+
 
 class ChatState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
@@ -53,27 +78,31 @@ async def rag_tool(query):
         'context': context,
     }
 
-tools = [rag_tool]
-llm_with_tools = llm.bind_tools(tools)
-tool_node = ToolNode(tools)
-
-async def chat(state: ChatState):
-    messages = state['messages']
-    response = await llm_with_tools.ainvoke(messages)
-
-    return {'messages': [response]}
-
-
-graph = StateGraph(ChatState)
-graph.add_node("Chat", chat)
-graph.add_node('tools', tool_node)
-
-graph.add_edge(START, "Chat")
-graph.add_conditional_edges("Chat", tools_condition)
-graph.add_edge("tools", "Chat")
-graph.add_edge("Chat", END)
 
 async def main():
+    mcp_tools = await client.get_tools()
+    tools = mcp_tools + [rag_tool]
+
+    
+    llm_with_tools = llm.bind_tools(tools)
+    tool_node = ToolNode(tools)
+
+    async def chat(state: ChatState):
+        messages = state['messages']
+        response = await llm_with_tools.ainvoke(messages)
+
+        return {'messages': [response]}
+
+
+    graph = StateGraph(ChatState)
+    graph.add_node("Chat", chat)
+    graph.add_node('tools', tool_node)
+
+    graph.add_edge(START, "Chat")
+    graph.add_conditional_edges("Chat", tools_condition)
+    graph.add_edge("tools", "Chat")
+    graph.add_edge("Chat", END)
+    
     async with AsyncPostgresSaver.from_conn_string(conn_string=os.getenv('SUPABASE_URL')) as checkpoint:
         await checkpoint.setup()
         chatbot = graph.compile(checkpointer=checkpoint)
@@ -96,7 +125,7 @@ async def main():
                 stream_mode='messages'
             )
             
-            async for message_chunk, metadata in response:
+            async for message_chunk, _ in response:
                 if isinstance(message_chunk, AIMessage) and message_chunk.content and not message_chunk.tool_calls:
                     print(message_chunk.content, end='', flush=True)
             print()
