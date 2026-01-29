@@ -8,7 +8,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.tools import tool
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -24,7 +24,7 @@ llm = ChatOpenAI(model='gpt-4o-mini')
 class ChatState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
-loader = PyPDFLoader(file_path='')
+loader = PyPDFLoader(file_path='LLMs Questions.pdf')
 docs = loader.load()
 
 splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
@@ -32,6 +32,7 @@ chunks = splitter.split_documents(docs)
 
 embeddings = OpenAIEmbeddings(model='text-embedding-3-small')
 vector_store = FAISS.from_documents(chunks, embeddings)
+# vector_store.save_local()
 retriever = vector_store.as_retriever(search_type='similarity', search_kwargs={'k':4})
 
 
@@ -77,6 +78,7 @@ async def main():
         await checkpoint.setup()
         chatbot = graph.compile(checkpointer=checkpoint)
 
+# Runn this code only for testing
         while True:
             user_query = input("Human: ")
             if user_query.lower() in ['bye', 'q', 'quit']:
@@ -95,9 +97,8 @@ async def main():
             )
             
             async for message_chunk, metadata in response:
-                if message_chunk.content:
+                if isinstance(message_chunk, AIMessage) and message_chunk.content and not message_chunk.tool_calls:
                     print(message_chunk.content, end='', flush=True)
-
             print()
 
 if __name__ == "__main__":
