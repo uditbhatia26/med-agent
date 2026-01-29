@@ -31,17 +31,9 @@ client = MultiServerMCPClient(
             "transport": "http",
             "url": "https://weather-ca299b5b8522.fastmcp.app/mcp",
             "headers": {  
-                "Authorization": f"Bearer fmcp_pK2yvWhNnJ1EJde-9FOla2He9HtnR16o9dtM5U_5nWE",
+                "Authorization": f"Bearer {os.getenv("FASTMCP_TOKEN")}",
             },  
         },
-        
-        "expense": {
-            'transport': 'http',
-            'url': 'https://labour-magenta-salmon.fastmcp.app/mcp',
-            "headers": {  
-                "Authorization": "Bearer fmcp_pK2yvWhNnJ1EJde-9FOla2He9HtnR16o9dtM5U_5nWE",
-            },
-        }
     }
 )
 
@@ -119,7 +111,7 @@ async def main():
                 },
                 config={
                     'configurable':{
-                        'thread_id': '10'
+                        'thread_id': '10' # generate_thread()
                     }
                 },
                 stream_mode='messages'
