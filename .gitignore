@@ -11,3 +11,4 @@ wheels/
 .env
 *.ipynb
 *.lock
+*.pdf
