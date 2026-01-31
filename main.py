@@ -129,8 +129,8 @@ async def load_all_tools(mcp_client: MultiServerMCPClient) -> list:
     try:
         mcp_tools = await mcp_client.get_tools()
         print(f"✅ Loaded {len(mcp_tools)} MCP tools")
-    except Exception as e:
-        print(f"⚠️  Failed to load MCP tools: {e}")
+    except Exception as error:
+        print(f"⚠️  Failed to load MCP tools: {error}")
         mcp_tools = []
     
     all_tools = mcp_tools + [rag_tool]
@@ -223,7 +223,7 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n\n👋 Interrupted by user. Goodbye!\n")
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
+    except Exception as error:
+        print(f"\n❌ Error: {error}")
         import traceback
         traceback.print_exc()
