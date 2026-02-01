@@ -41,17 +41,6 @@ FASTMCP_TOKEN = os.getenv('FASTMCP_TOKEN')
 
 llm = ChatOpenAI(model=LLM_MODEL)
 
-client = MultiServerMCPClient(
-    {
-        "weather": {
-            "transport": "http",
-            "url": "https://weather-ca299b5b8522.fastmcp.app/mcp",
-            "headers": {  
-                "Authorization": f"Bearer {FASTMCP_TOKEN}",
-            },  
-        },
-    }
-)
 
 # State Definition
 class ChatState(TypedDict):
@@ -73,6 +62,13 @@ def initialize_mcp_client() -> MultiServerMCPClient:
                 "Authorization": f"Bearer {FASTMCP_TOKEN}"
             }
         },
+        'medsundhan': {
+            'transport': 'http',
+            'url':'https://dreadful-fuchsia-python.fastmcp.app/mcp',
+            'headers': {
+                "Authorization": f"Bearer {FASTMCP_TOKEN}"
+            }
+        }
     })
 
 
