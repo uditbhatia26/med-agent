@@ -25,3 +25,8 @@ dependencies = [
     "pypdf>=6.6.2",
     "tavily-python>=0.7.19",
 ]
+
+[tool.uv.workspace]
+members = [
+    "EY MCP Server",
+]
